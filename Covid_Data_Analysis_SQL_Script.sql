@@ -102,4 +102,61 @@ order by e.location;
 
 ----------------------------------------------------------------------------------
 
+-- Self Analysis --
+
+-- Total Tests conducted over different regions
+
+select location, max(cast(total_tests as bigint)) as No_of_tests_Conducted
+from [Covid Vaccinations]
+where continent is not null 
+group by location
+having max(cast(total_tests as bigint)) is not null
+order by No_of_tests_Conducted desc;
+
+
+-- Trend in testing over the period of 3 years for different countries
+select Year(date), location, sum(cast(new_tests as bigint)) as to_tests
+from [Covid Vaccinations]
+where location = 'United States' 
+and continent is not null
+group by year(date), location
+order by year(date)
+
+-- No. of people who tested positive out of the total_tests_conducted in India
+
+select date, location, total_tests, new_tests, positive_rate,
+round(((cast(positive_rate as float)) * total_tests),0)  as no_of_positives
+from [Covid Vaccinations]
+where location = 'India'
+order by date, location;	
+
+-- Comparison of Positive_testing_rate by different countries
+
+select year(date) as years, location, 
+max(positive_rate) as Positive_testing_rate_over_the_years
+from [Covid Vaccinations]
+where location = 'India'
+group by year(date), location
+having max(positive_rate) is not null
+order by year(date), location;	
+
+
+-- Testing Intensity
+-- This tells us that each person has been tested approximately [tests_per_capita] value times.
+-- It is a measure of testing intensity and indicates the average number of tests performed on individuals 
+-- relative to the total population size.
+
+Select e.location, e.No_of_tests_Conducted, e.pop, round((e.No_of_tests_Conducted/e.pop),2) as tests_per_capita
+from (
+	select dea.location, max(cast(vac.total_tests as bigint)) as No_of_tests_Conducted,
+	max(dea.population) as pop
+	from [Covid Vaccinations] vac
+	join [Covid Deaths ] dea on 
+	dea.date = vac.date and
+	dea.location = vac.location
+	where dea.continent is not null 
+	group by dea.location) as e
+Order by e.No_of_tests_Conducted Desc
+
+
 
