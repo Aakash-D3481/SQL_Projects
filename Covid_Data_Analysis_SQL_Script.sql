@@ -111,8 +111,8 @@ order by dea.location, dea.date;
 select e.continent as Continent, e.location as Country, max(e.population) as Total_Population, max(e.rolling_total) as Total_Vaccinations,
 round((max(e.rolling_total)/max(e.population)) * 100,2) as Vaccination_Percentage
 from (
-	select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations,
-	sum(cast(vac.new_vaccinations as bigint)) over(Partition by dea.location order by dea.location, dea.date) 
+	select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations_smoothed,
+	sum(cast(vac.new_vaccinations_smoothed as bigint)) over(Partition by dea.location order by dea.location, dea.date) 
 	as rolling_total
 	from [Covid Deaths ] dea
 	join [Covid Vaccinations] vac 
@@ -254,3 +254,91 @@ having max(vac.people_fully_vaccinated) is not null
 order by Vaccination_Percentage Desc;
 
 
+----------------------------------------------------------------------------------------
+
+-- New_Views
+
+--1. Cards
+
+Create view Covid_19_Infection_and_Death_Stats
+as
+select sum(cast(new_cases as bigint)) as Total_No_Of_Infected,
+sum(cast(new_deaths as bigint)) as Total_Deaths_over_The_World,
+round((sum(cast(new_deaths as int))/sum(new_cases)*100),2) as Death_Percentage
+from [Covid Deaths ]
+where continent is not null;
+
+select * from Covid_19_Infection_and_Death_Stats;
+
+-- 2. Total_Death_Count_by_country
+
+create or alter view Death_Count_Country_wise 
+as
+select continent as Continent, location as Country, population as Country_Population, 
+max(convert(integer,total_deaths)) as Total_Death_Count
+,Max((Convert(decimal,total_deaths)/convert(decimal,population)*100)) as
+Rate_of_Death
+from [Covid Deaths ]
+where continent is not null
+group by continent, location, population
+having max(convert(integer,total_deaths)) is not null
+--order by Total_Death_Count desc;
+
+select * from Death_Count_Country_wise;
+
+-- 3. Total_Population_Infected_by_Country
+
+create view Total_Infected_Country_wise
+as
+select continent as Continent, location as Country, 
+sum(cast(new_cases as bigint)) as Total_Infected
+from [Covid Deaths ] 
+where continent is not null
+group by continent, location
+having sum(cast(new_cases as bigint)) is not null
+--order by total_infected desc
+
+Select * from Total_Infected_Country_wise;
+
+-- 4. Total_Tests_by_Country
+
+Create or alter view Testing_intensity
+as
+Select e.continent as Continent, e.location as Country, e.No_of_tests_Conducted, e.pop as Total_Population, 
+round((e.No_of_tests_Conducted/e.pop),2) as Avg_Tests_Per_Person
+from (
+	select dea.continent, dea.location, max(cast(vac.total_tests as bigint)) as No_of_tests_Conducted,
+	max(dea.population) as pop
+	from [Covid Vaccinations] vac
+	join [Covid Deaths ] dea on 
+	dea.date = vac.date and
+	dea.location = vac.location
+	where dea.continent is not null 
+	group by dea.continent, dea.location) as e
+where No_of_tests_Conducted is not null
+-- Order by e.No_of_tests_Conducted Desc
+
+select * from Testing_intensity;
+
+-- 5. Total_Vaccinations_By_Country
+
+select dea.continent, dea.location, dea.population, 
+max(vac.total_vaccinations_per_hundred) as Total_People_Vaccinated
+--,(max(cast(vac.total_vaccinations_per_hundred as bigint))/dea.population)*100 as Vaccination_Percentage
+from [Covid Deaths ] dea
+join [Covid Vaccinations] vac 
+on vac.location = dea.location and
+vac.date = dea.date
+where dea.continent is not null
+group by dea.continent, dea.location, dea.population
+--having max(vac.people_fully_vaccinated) is not null
+--order by Vaccination_Percentage Desc;
+
+--check--
+
+select vac.date, vac.continent, vac.location, dea.population, vac.total_vaccinations_per_hundred
+from [Covid Vaccinations] vac
+join [Covid Deaths ] dea on vac.date = dea.date 
+and vac.location = dea.location
+where vac.location = 'Afghanistan'
+order by vac.date, vac.continent
