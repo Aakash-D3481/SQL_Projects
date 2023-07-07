@@ -1,26 +1,25 @@
---select * from dbo.[Covid Deaths ];
+--For quick Reference of Tables
 
+--select * from dbo.[Covid Deaths ];
 --select * from dbo.[Covid Vaccinations];
 
-select location, date, total_cases, new_cases, total_deaths, population
-from dbo.[Covid Deaths ]
-order by location, date;
 
 -- Exploratory Data Analysis
+
 -- Describing total cases and total deaths
--- Death_rate shows the likelihood of dying if you contract covid
--- For location = India
+-- For all Countries
+
 
 select location, date, total_cases, total_deaths, (Convert(decimal,total_deaths)/convert(decimal,total_cases)*100)
 as Death_rate
 from dbo.[Covid Deaths ]
-where date >= '2020-02-26 00:00:00.000' and location = 'India'
-and continent is not null
+where continent is not null
+and location is not null
 order by location, date;
 
 -------------------------------------------------------------------------------------------------------------
--- Total Cases are what Percent of the total population in India
--- what percent of the total population contracted Covid in India
+
+-- What percent of the total population contracted Covid in India throughout the data?
 
 select location, date, population, total_cases, (Convert(decimal,total_cases)/convert(decimal,population)*100)
 as Case_rate
@@ -29,7 +28,9 @@ where location = 'India'
 and continent is not null
 order by location, date;
 
--- What country had the Highest Infection rate
+------------------------------------------------------------------------
+
+-- What country had the Highest Infection rate?
 
 select location, population, max(convert(integer,total_cases)) as max_cases_count
 ,Max((Convert(decimal,total_cases)/convert(decimal,population)*100)) as
@@ -41,10 +42,8 @@ order by infection_rate desc;
 
 ---------------------------------------------------------------------------------------------------
 
--- what country had the highest death count
+-- What country had the highest death count?
 
-create or alter view Death_Count_Country_wise 
-as
 select location as Country, population as Country_Population, 
 max(convert(integer,total_deaths)) as Total_Death_Count
 ,Max((Convert(decimal,total_deaths)/convert(decimal,population)*100)) as
@@ -53,42 +52,34 @@ from [Covid Deaths ]
 where continent is not null
 group by location, population
 having max(convert(integer,total_deaths)) is not null
---order by Total_Death_Count desc;
+order by Total_Death_Count desc;
 
-select * from Death_Count_Country_wise;
 ---------------------------------------------------------------------------------------------------
 
---Now to see highest death count by continents
+--Highest death count by continents
 
-Create view Death_count_by_continents
-as
 select continent as Continent, max(convert(integer,total_deaths)) as Total_Death_Count
 from [Covid Deaths ]
 where continent is not null
 group by continent
--- order by Total_Death_Count desc;
-
-select * from Death_count_by_continents;
+order by Total_Death_Count desc;
 
 ---------------------------------------------------------------------------------------------------
 
--- Global Numbers
--- we are summing up all the newcases in the entire world, and also summing up newdeaths in the world,
--- Further more calculating what  the death percent is over the world
+-- Global Figures of The Covid-19 Pandemic
+-- Summing up all the newcases in the entire world, and also summing up newdeaths in the world,
+-- Further more calculating what the death percent is over the world
 
-Create view Covid_19_Infection_and_Death_Stats
-as
+
 select sum(cast(new_cases as bigint)) as Total_No_Of_Infected,
 sum(cast(new_deaths as bigint)) as Total_Deaths_over_The_World,
 round((sum(cast(new_deaths as int))/sum(new_cases)*100),2) as Death_Percentage
 from [Covid Deaths ]
 where continent is not null;
 
-select * from Covid_19_Infection_and_Death_Stats;
 
 ---------------------------------------------------------------------------------------------------
 
--- The vaccination table Analysis
 
 -- Finding out the rolling vaccination total of each country over the years
 
@@ -100,59 +91,35 @@ join [Covid Vaccinations] vac
 on vac.location = dea.location and
 vac.date = dea.date
 where dea.continent is not null
-and dea.location = 'Australia'
+and dea.location is not null
 order by dea.location, dea.date;
 
-
--- Finding the Total Vaccination Percentage against the population for different Countries 
---( Looks Wrong )
-
-
-select e.continent as Continent, e.location as Country, max(e.population) as Total_Population, max(e.rolling_total) as Total_Vaccinations,
-round((max(e.rolling_total)/max(e.population)) * 100,2) as Vaccination_Percentage
-from (
-	select dea.continent, dea.location, dea.date, dea.population, vac.new_vaccinations_smoothed,
-	sum(cast(vac.new_vaccinations_smoothed as bigint)) over(Partition by dea.location order by dea.location, dea.date) 
-	as rolling_total
-	from [Covid Deaths ] dea
-	join [Covid Vaccinations] vac 
-	on vac.location = dea.location and
-	vac.date = dea.date
-	where dea.continent is not null) e
-group by e.continent, e.location
-having max(e.rolling_total) is not null
-order by e.location;
-
-
-----------------------------------------------------------------------------------
+--------------------------------------------------------------------------------
 
 -- Total Tests conducted over different Countries
-Create view Country_Test_Count
-as
+
 select location as Country, max(cast(total_tests as bigint)) as No_of_tests_Conducted
 from [Covid Vaccinations]
 where continent is not null 
 group by location
 having max(cast(total_tests as bigint)) is not null
---order by No_of_tests_Conducted desc;
+order by No_of_tests_Conducted desc;
 
-Select * from Country_Test_Count;
 
 ---------------------------------------------------------------------------------------------------
 
 -- Trend in testing over the period of 3 years across different countries
+-- Here it is a trend of India
 
-Create view Yearly_Country_Testing_Count
-as
+
 select Year(date) as Years, location as Country, sum(cast(new_tests as bigint)) as Total_Tests_Count
 from [Covid Vaccinations]
---where location = 'United States' 
-where continent is not null
+where location = 'India' 
+and continent is not null
 group by year(date), location
 having sum(cast(new_tests as bigint)) is not null
---order by year(date)
+order by year(date)
 
-Select * from Yearly_Country_Testing_Count;
 
 ---------------------------------------------------------------------------------------------------
 
@@ -169,18 +136,16 @@ order by date, location;
 -- Comparison of rate at testing as Covid Positive by different countries out of the \
 -- total tests conducted,\
 -- Throughout different years
+-- For this case, it is for India
 
-create view Yearly_Country_COVID19_Positive_Rate
-as
+
 select year(date) as Year, location as Country, 
 round(max(positive_rate),4) as Testing_as_Covid_Positive_Rate
 from [Covid Vaccinations]
--- where location = 'United States'
+where location = 'India'
 group by year(date), location
 having max(positive_rate) is not null
---order by year(date), location;	
-
-select * from Yearly_Country_COVID19_Positive_Rate;
+order by year(date), location;	
 
 ---------------------------------------------------------------------------------------------------
 
@@ -189,8 +154,6 @@ select * from Yearly_Country_COVID19_Positive_Rate;
 -- Here Tests_per_person is a measure of testing intensity and indicates the average number of tests performed on individuals 
 -- relative to the total population size. And everything is grouped by different countries
 
-create or alter view Testing_intensity 
-as
 Select e.location as Country, e.No_of_tests_Conducted, e.pop as Total_Population, 
 round((e.No_of_tests_Conducted/e.pop),2) as Avg_Tests_Per_Person
 from (
@@ -203,74 +166,42 @@ from (
 	where dea.continent is not null 
 	group by dea.location) as e
 where No_of_tests_Conducted is not null
---Order by e.No_of_tests_Conducted Desc
-
-select * from Testing_intensity;
+Order by e.No_of_tests_Conducted Desc
 
 ---------------------------------------------------------------------------------------------------
 
 -- To analyse the Hospitilization rate across continents 
 
-Create view Hosipitalization_Over_Continents
-as
 select  continent as Continent, location as Country , 
 sum(cast(hosp_patients as int)) as Total_Hospitalized_Patients,
 max(population) as Total_Population,
 round((sum(cast(hosp_patients as int))/max(population))*100,2) as Hospitalization_Rate
 from [Covid Deaths ]
 where continent is not null
--- and continent = 'North America'
 group by continent, location
 having sum(cast(hosp_patients as int)) is not null
---order by Hosp_rate Desc
-
-select * from Hosipitalization_Over_Continents;
+order by Hospitalization_Rate Desc
 
 ---------------------------------------------------------------------------------------------------
 
---The "GDP per capita" is a measure of economic prosperity and represents the Gross Domestic Product (GDP) 
---of a country divided by its population. 
---It provides an estimate of the average economic output per person in a given country.
---
-
-select location, gdp_per_capita
-from [Covid Vaccinations] 
-where continent is not null
-and location = 'United States'
-
-
---Vaccination Check
-
-select dea.continent, dea.location, dea.population, 
-max(vac.people_fully_vaccinated) as Total_People_Vaccinated,
-(max(vac.people_fully_vaccinated)/dea.population)*100 as Vaccination_Percentage
-from [Covid Deaths ] dea
-join [Covid Vaccinations] vac 
-on vac.location = dea.location and
-vac.date = dea.date
-where dea.continent is not null
-group by dea.continent, dea.location, dea.population
-having max(vac.people_fully_vaccinated) is not null
-order by Vaccination_Percentage Desc;
-
-
 ----------------------------------------------------------------------------------------
 
--- New_Views
+-- Creation of Views for making a Dashboard in PowerBI
 
---1. Cards
+--1. COVID-19 Infection Statistics ( Global Figures )
 
-Create view Covid_19_Infection_and_Death_Stats
+Create or alter view Covid_19_Infection_and_Death_Stats
 as
 select sum(cast(new_cases as bigint)) as Total_No_Of_Infected,
 sum(cast(new_deaths as bigint)) as Total_Deaths_over_The_World,
 round((sum(cast(new_deaths as int))/sum(new_cases)*100),2) as Death_Percentage
 from [Covid Deaths ]
-where continent is not null;
+where continent is not null
+and location not in ('World', 'European Union', 'International');
 
 select * from Covid_19_Infection_and_Death_Stats;
 
--- 2. Total_Death_Count_by_country
+-- 2. The Mortality Count Country wise
 
 create or alter view Death_Count_Country_wise 
 as
@@ -286,7 +217,7 @@ having max(convert(integer,total_deaths)) is not null
 
 select * from Death_Count_Country_wise;
 
--- 3. Total_Population_Infected_by_Country
+-- 3. Total Infected Country Wise
 
 create view Total_Infected_Country_wise
 as
@@ -300,7 +231,8 @@ having sum(cast(new_cases as bigint)) is not null
 
 Select * from Total_Infected_Country_wise;
 
--- 4. Total_Tests_by_Country
+
+-- 4. Testing Statistics
 
 Create or alter view Testing_intensity
 as
@@ -320,25 +252,26 @@ where No_of_tests_Conducted is not null
 
 select * from Testing_intensity;
 
--- 5. Total_Vaccinations_By_Country
 
-select dea.continent, dea.location, dea.population, 
-max(vac.total_vaccinations_per_hundred) as Total_People_Vaccinated
---,(max(cast(vac.total_vaccinations_per_hundred as bigint))/dea.population)*100 as Vaccination_Percentage
-from [Covid Deaths ] dea
-join [Covid Vaccinations] vac 
-on vac.location = dea.location and
-vac.date = dea.date
-where dea.continent is not null
-group by dea.continent, dea.location, dea.population
---having max(vac.people_fully_vaccinated) is not null
---order by Vaccination_Percentage Desc;
+-- 5. Strain on Healthcare Systems of the Country
 
---check--
+create view Strain_On_Healthcare_Systems
+as
+select  continent as Continent, location as Country , 
+sum(cast(hosp_patients as int)) as Total_Hospitalized_Patients,
+max(population) as Total_Population,
+round((sum(cast(hosp_patients as int))/max(population))*100,2) as Hospitalization_Rate
+from [Covid Deaths ]
+where continent is not null
+-- and continent = 'North America'
+group by continent, location
+having sum(cast(hosp_patients as int)) is not null
+--order by Hosp_rate Desc
 
-select vac.date, vac.continent, vac.location, dea.population, vac.total_vaccinations_per_hundred
-from [Covid Vaccinations] vac
-join [Covid Deaths ] dea on vac.date = dea.date 
-and vac.location = dea.location
-where vac.location = 'Afghanistan'
-order by vac.date, vac.continent
+select * from Strain_On_Healthcare_Systems;
+
+
+--========================================================================
+
+
+
