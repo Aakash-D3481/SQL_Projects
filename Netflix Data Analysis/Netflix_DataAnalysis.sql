@@ -116,3 +116,78 @@ group by director
 order by Total_Content_made desc;
 
 -------------------------------------------------------------------------
+
+-- Creating Views of the above queries for Building a dashboard
+
+Create view Dist_of_content_type
+as 
+select e.Content_Type, e.total, e.Total_content
+from(
+	select distinct(type) as Content_Type, count(type) as total,
+	sum(count(type)) over() as Total_content
+	from [Netflix Data]
+	group by type) e
+
+select * from Dist_of_content_type;
+
+-------------------------------------------------------------------------
+
+Create view num_of_content_by_country
+as
+select country as Country, type as Content_Type, count(*) as No_of_Titles,
+sum(count(*)) over(Partition by Country) as Total_Titles
+from [Netflix Data]
+group by country, type
+--order by country;
+
+select * from num_of_content_by_country;
+
+-----------------------------------------------------------------------------
+
+create view Content_each_year
+as
+select year(date_added_fixed) as years, 
+count(*) as total_titles_added_during_the_year
+from [Netflix Data]
+group by year(date_added_fixed)
+--order by years;
+
+select * from Content_each_year;
+
+------------------------------------------------------------------------
+
+create view highest_of_rated_shows
+as
+select e.Content_rating, e.total, e.Total_content
+from(
+	select distinct(rating) as Content_rating, count(type) as total,
+	sum(count(type)) over() as Total_content
+	from [Netflix Data]
+	group by rating) e
+--order by total desc
+
+select * from highest_of_rated_shows;
+
+------------------------------------------------------------------------
+
+create view oldest_show_on_platform
+as
+select type, title, release_year
+from [Netflix Data]
+--order by release_year
+
+select * from oldest_show_on_platform
+
+------------------------------------------------------------------------
+
+create view Top_directors
+as
+select director as Directors_Name, count(*) as Total_Content_made
+from [Netflix Data]
+where director <> 'Not Given'
+group by director 
+--order by Total_Content_made desc;
+
+select * from Top_directors;
+
+--===========================================================================
